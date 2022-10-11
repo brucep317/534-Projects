@@ -1,0 +1,111 @@
+---
+title: "Computer Project 4"
+author: "Bruce Phillips"
+date: '2022-09-13'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+The function is below. It takes inputs: n=number of periods+1, r= risk-free interest rate, u=increase factor, d=decrease factor, s=initial stock price, k=strike price, type=('call','put') is the payoff function. The basic idea is to use a matrix of size nxn to represent the price trees. We first populate the Stock price matrix. We then use these prices to populate a new matrix of option prices using the chosen payoff function. Then we can calculate the present value matrix by iterating backwards over the entries of the option matrix using the risk-free probability measure. Finally the option and present value matrices are compared to determine the best exercise time.
+
+```{r}
+binop<-function(n,r,u,d,s,k,type){
+#create matrix of stock prices
+s.mat<-matrix(0,n,n)
+for(i in 1:nrow(s.mat)){
+  for(j in 1:ncol(s.mat)){
+    if(i+j<=n+1){
+      s.mat[i,j]<-s* u^(j-1) * d^(i-1)}}}
+
+#matrix of option prices using call/put
+o.mat<-matrix(0,n,n)
+if(type=='call'){
+  for(i in 1:nrow(s.mat)){
+    for(j in 1:ncol(s.mat)){
+      if(i+j<=n+1){
+        o.mat[i,j]<-max(s.mat[i,j]-k,0)}}}
+}
+else
+  if(type=='put'){
+    for(i in 1:nrow(s.mat)){
+      for(j in 1:ncol(s.mat)){
+        if(i+j<=n+1){
+          o.mat[i,j]<-max(k-s.mat[i,j],0)}}}
+  }
+
+#calc risk-free probability measure
+p<-(1+r-d)/(u-d)
+q<-(u-(1+r))/(u-d)
+
+#calc present fair price matrix
+p.mat<-matrix(0,n,n)
+for(i in 1:nrow(s.mat)){
+  for(j in 1:nrow(s.mat)){
+    if(i+j==n+1){
+      p.mat[i,j]<-o.mat[i,j]
+    }}}
+for(i in n:1){
+  for(j in n:1){
+    if(i+j<n+1){
+      p.mat[i,j]<-max((p*p.mat[i,j+1]+q*p.mat[i+1,j])/(r+1),o.mat[i,j])
+    }}}
+
+
+d.mat<-o.mat-p.mat
+for(i in 1:nrow(d.mat)){
+  for(j in 1:nrow(d.mat)){
+    if(d.mat[i,j]>=0){
+      d.mat[i,j]<-1
+    }else{
+      d.mat[i,j]<-0 
+    }
+  }
+}
+
+
+
+
+pos.mat<-matrix(0,n,n)
+for(i in 1:nrow(pos.mat)){
+  for( j in 1:nrow(pos.mat)){
+    pos.mat[i,j]<-i+j
+  }
+}
+
+ones<-pos.mat[which(d.mat==1)]
+
+pos<-which(pos.mat==min(ones),arr.ind = T)
+
+max.option<-max(o.mat[pos])
+
+
+#sell time
+times<-rowSums(which(o.mat==max.option,arr.ind = T))-2
+sell.time<-min(times)
+
+strategy<-paste(paste0('optimal sell time:',sell.time,' given option price is ',max.option))
+fair.price<-p.mat[1,1]
+return(c('fair price:'=fair.price,'strategy:'=strategy))
+}
+
+```
+
+
+1)
+```{r}
+binop(n=100,r=.07,u=1.25,d=.8,s=400,k=375,type = 'call')
+```
+2)
+```{r}
+binop(n=100,r=.07,u=1.25,d=.8,s=400,k=375,type = 'put')
+```
+
+Some remarks:
+ For these particular options, the optimal sell time for the call option seems to always be n/2, rounded up. For the put option the optimal exercise time is t=2 no matter what.
+ 
+ As n increases, the fair price for both options converges. For the call, it converges to 400= the starting stock price. For the put option, it converges to 33.84888..., not sure what this is, my guess is an exponential function of some of the option parameters.
+ 

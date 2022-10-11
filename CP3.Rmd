@@ -1,0 +1,219 @@
+---
+title: "534 CP3"
+author: "Bruce Phillips"
+date: '2022-09-12'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Problem 1
+
+Part a
+
+```{r}
+samp<-runif(10000,0,1)
+```
+
+Part b
+
+```{r}
+bmsamp<-NULL
+for(i in seq(1,10000,2)){
+  u1<-samp[i]
+  u2<-samp[i+1]
+  x1<-sqrt((-2)*log(u1))*cos(2*pi*u2)
+  x2<-sqrt((-2)*log(u1))*sin(2*pi*u2)
+  bmsamp<-append(bmsamp,c(x1,x2))
+}
+
+hist(bmsamp)
+```
+
+Part c
+
+```{r}
+kstest<-ks.test(bmsamp,'pnorm')
+kstest
+```
+
+The null hypothesis for this test is that the two samples come from the same distribution. Assuming we use a 5% significance level, we accept the null hypothesis, confirming the Box-Muller sample is normal distributed.
+
+\newpage
+
+Problem 2
+
+Part a
+
+```{r}
+samp<-runif(10000,-1,1)
+```
+
+Part b
+
+```{r}
+mpsamp<-NULL
+for(i in seq(1,10000,2)){
+  u1<-samp[i]
+  u2<-samp[i+1]
+  r<-u1^2 +u2^2
+  if(r>0){
+    if(r<=1){
+      x1<-sqrt((-2)*log(r)/r)*u1
+      x2<-sqrt((-2)*log(r)/r)*u2
+      mpsamp<-append(mpsamp,c(x1,x2))}
+    }
+}
+hist(mpsamp)
+```
+
+Part c
+
+```{r}
+kstest<-ks.test(mpsamp,"pnorm")
+kstest
+```
+
+The Marsaglia polar sample is also normal distributed based on the test.
+
+Part d
+
+Checking run times:
+
+```{r}
+library(ggplot2)
+library(microbenchmark)
+```
+
+```{r}
+mbm<-microbenchmark(
+  'box-muller'= {
+    samp<-runif(10000,0,1)
+    bmsamp<-NULL
+    for(i in seq(1,10000,2)){
+      u1<-samp[i]
+      u2<-samp[i+1]
+      x1<-sqrt((-2)*log(u1))*cos(2*pi*u2)
+      x2<-sqrt((-2)*log(u1))*sin(2*pi*u2)
+      bmsamp<-append(bmsamp,c(x1,x2))}
+  },
+  
+  'marsaglia'={
+    samp<-runif(10000,-1,1)
+    mpsamp<-NULL
+    for(i in seq(1,10000,2)){
+      u1<-samp[i]
+      u2<-samp[i+1]
+      r<-u1^2 +u2^2
+      if(r>0){
+        if(r<=1){
+        x1<-sqrt((-2)*log(r)/r)*u1
+        x2<-sqrt((-2)*log(r)/r)*u2
+        mpsamp<-append(mpsamp,c(x1,x2))}}}
+  }
+)
+mbm
+autoplot(mbm)
+```
+
+This benchmark suggests that the Marsaglia method is significantly faster on average than the Box-Muller method. However, I dont think this is the full story. The Marsaglia method should take longer as for each pair of u1, u2 we must additionally calculate R and check that it falls within the range (0,1]. My guess is that a large percentage of the R's are getting thrown out before x1 and x2 are calculated. Thus Marsaglia takes less time but is generating a much smaller sample.
+
+We can try forcing Marsaglia to generate the same size sample to get a better comparison:
+```{r}
+mpsamp<-NULL
+while(length(mpsamp)<10000){
+  samp<-runif(2,-1,1)
+  u1<-samp[1]
+  u2<-samp[2]
+  r<-u1^2 +u2^2
+  if(r>0){
+      if(r<=1){
+      x1<-sqrt((-2)*log(r)/r)*u1
+      x2<-sqrt((-2)*log(r)/r)*u2
+      mpsamp<-append(mpsamp,c(x1,x2))}}
+}
+hist(mpsamp)
+```
+The new benchmark comparison:
+
+```{r}
+mbm<-microbenchmark(
+  'box-muller'= {
+    samp<-runif(10000,0,1)
+    bmsamp<-NULL
+    for(i in seq(1,10000,2)){
+      u1<-samp[i]
+      u2<-samp[i+1]
+      x1<-sqrt((-2)*log(u1))*cos(2*pi*u2)
+      x2<-sqrt((-2)*log(u1))*sin(2*pi*u2)
+      bmsamp<-append(bmsamp,c(x1,x2))}
+  },
+  
+  'marsaglia'={
+     mpsamp<-NULL
+     while(length(mpsamp)<10000){
+     samp<-runif(2,-1,1)
+     u1<-samp[1]
+     u2<-samp[2]
+     r<-u1^2 +u2^2
+     if(r>0){
+      if(r<=1){
+      x1<-sqrt((-2)*log(r)/r)*u1
+      x2<-sqrt((-2)*log(r)/r)*u2
+      mpsamp<-append(mpsamp,c(x1,x2))}}
+     }
+  }
+)
+mbm
+autoplot(mbm)
+```
+Now we can see that the Box-Muller method is on average ~10ms faster than Marsaglia when generating samples of the same size (10000 in this case).
+
+
+\newpage
+
+Problem 3
+
+Part a
+```{r}
+samp<-runif(10000,0,1)
+```
+
+Part b
+```{r}
+greater<-samp>.5
+s<-2*greater-1
+```
+
+Part c
+```{r}
+u<-runif(10000,0,1)
+```
+
+Part d
+```{r}
+x<-sqrt(pi/8)*s*log((1+u)/(1-u))
+hist(x)
+```
+
+Part e
+```{r}
+ks.test(x,'pnorm')
+```
+We reject the null hypothesis that x is normal distributed.
+
+
+Part f
+
+The result is not exactly Gaussian due to the approximation resulting in compounding errors throughout the process.
+
+Part g
+
+Simply subtract the mean and subtract two from each x:
+```{r}
+mean=mean(x)
+mean(x-mean-2)
+```
+

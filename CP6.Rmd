@@ -1,0 +1,39 @@
+---
+title: "CP6"
+author: "Bruce Phillips"
+date: '2022-10-07'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:/Users/bruce/OneDrive/Documents")
+```
+
+```{r include=FALSE}
+library(tidyverse)
+data<-read.csv('data.TXT',header=F)
+```
+```{r}
+stream<-data[1,]%>%as.numeric()
+n<-length(stream)
+y<-c()
+for(i in 1:n-1){
+  v1<-stream[1:i]
+  v2<-stream[i+1:n]%>%na.omit
+  k<-length(v1)
+  y[i]<-sqrt(k*(n-k)/ n^2)*(mean(v1)-mean(v2))
+}
+ymax<-y%>%abs%>%max
+crit<-1.36/sqrt(n)
+
+print(paste('ymax:',ymax))
+if(ymax>crit){
+  breakpoint<-which(y==ymax)
+  print('data is not homogenous')
+  print(paste('breakpoint at',breakpoint))
+}else{
+  print('data is homogenous')
+}
+```
+
